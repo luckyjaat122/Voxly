@@ -13,13 +13,13 @@ const Icons = {
 };
 
 /* ─── Dashboard Panel Components ─── */
+const INITIAL_BARS = [30, 45, 38, 60, 52, 72, 48, 65, 80, 55, 70, 88, 62, 75, 50, 68, 85, 58, 72, 64, 78, 90, 56, 70];
+
 function OverviewPanel() {
-  const [bars, setBars] = useState<number[]>([]);
+  const [bars, setBars] = useState<number[]>(INITIAL_BARS);
   useEffect(() => {
-    const initial = [30, 45, 38, 60, 52, 72, 48, 65, 80, 55, 70, 88, 62, 75, 50, 68, 85, 58, 72, 64, 78, 90, 56, 70];
-    setBars(initial);
     const interval = setInterval(() => {
-      setBars(initial.map(() => Math.floor(Math.random() * 60 + 25)));
+      setBars(INITIAL_BARS.map(() => Math.floor(Math.random() * 60 + 25)));
     }, 2200);
     return () => clearInterval(interval);
   }, []);
@@ -285,14 +285,17 @@ function App() {
   const [activeView, setActiveView] = useState('overview');
   const [demoStatus, setDemoStatus] = useState<'idle' | 'connecting' | 'connected'>('idle');
   const [timer, setTimer] = useState('00:00');
-  const [waveBars, setWaveBars] = useState<number[]>([]);
+  const [waveBars] = useState(() =>
+    Array.from({ length: 28 }, () => ({
+      h: Math.floor(Math.random() * 40 + 15),
+      delay: Math.random() * 0.8,
+      duration: 0.6 + Math.random() * 0.4,
+    }))
+  );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const secondsRef = useRef(0);
 
   useEffect(() => {
-    const bars = Array.from({ length: 28 }, () => Math.floor(Math.random() * 40 + 15));
-    setWaveBars(bars);
-
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) {
@@ -310,6 +313,12 @@ function App() {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, []);
 
   const startDemo = () => {
@@ -706,8 +715,8 @@ function App() {
                   <div className="demo-timer">{timer}</div>
                 </div>
                 <div className="demo-waveform">
-                  {waveBars.map((h, i) => (
-                    <div key={i} className={`wave-bar ${demoStatus === 'connected' ? 'active' : ''}`} style={{ height: `${h}px`, animationDelay: `${Math.random() * 0.8}s`, animationDuration: `${0.6 + Math.random() * 0.4}s` }} />
+                  {waveBars.map((bar, i) => (
+                    <div key={i} className={`wave-bar ${demoStatus === 'connected' ? 'active' : ''}`} style={{ height: `${bar.h}px`, animationDelay: `${bar.delay}s`, animationDuration: `${bar.duration}s` }} />
                   ))}
                 </div>
                 <div className="demo-transcript">
