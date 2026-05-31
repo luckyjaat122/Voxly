@@ -1,0 +1,6 @@
+.env
+sip_trunks.json
+__pycache__
+*.pyc
+.git
+.venv

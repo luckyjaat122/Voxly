@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxly — AI Voice Agent</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 480px;
+      padding: 2rem;
+    }
+
+    .logo {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.95rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .call-area {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 2rem;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(139, 92, 246, 0.3);
+      animation: pulse 2s ease-in-out infinite;
+      opacity: 0;
+    }
+
+    .pulse-ring:nth-child(2) { animation-delay: 0.5s; }
+    .pulse-ring:nth-child(3) { animation-delay: 1s; }
+
+    .pulse-ring.active {
+      opacity: 1;
+      border-color: rgba(34, 197, 94, 0.4);
+      animation: pulse-active 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.85); opacity: 0; }
+      50% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes pulse-active {
+      0%, 100% { transform: scale(0.9); opacity: 0.3; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+
+    .call-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 2.5rem;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+    }
+
+    .call-btn.idle {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+    }
+
+    .call-btn.idle:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      box-shadow: 0 0 50px rgba(139, 92, 246, 0.5);
+    }
+
+    .call-btn.connecting {
+      background: linear-gradient(135deg, #eab308, #f59e0b);
+      color: white;
+      animation: spin 1.5s linear infinite;
+    }
+
+    .call-btn.active {
+      background: linear-gradient(135deg, #dc2626, #ef4444);
+      color: white;
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+    }
+
+    .call-btn.active:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes spin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    .status {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      min-height: 1.5em;
+    }
+
+    .status.connected { color: #22c55e; }
+    .status.error { color: #ef4444; }
+    .status.connecting { color: #eab308; }
+
+    .timer {
+      font-size: 2rem;
+      font-weight: 300;
+      color: #a0a0b0;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 1rem;
+      min-height: 2.5rem;
+    }
+
+    .transcript {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 1.5rem;
+      max-height: 200px;
+      overflow-y: auto;
+      text-align: left;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .transcript:empty { display: none; }
+
+    .transcript .agent { color: #a78bfa; }
+    .transcript .user { color: #60a5fa; }
+
+    .cost-badge {
+      display: inline-block;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 20px;
+      padding: 0.4rem 1rem;
+      font-size: 0.8rem;
+      color: #a78bfa;
+      margin-top: 1.5rem;
+    }
+
+    .config-status {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      font-size: 0.8rem;
+    }
+
+    .config-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+    }
+
+    .config-label { color: #888; }
+    .config-val.ok { color: #22c55e; }
+    .config-val.missing { color: #ef4444; }
+
+    .visualizer {
+      display: flex;
+      gap: 3px;
+      justify-content: center;
+      align-items: center;
+      height: 40px;
+      margin-bottom: 1rem;
+    }
+
+    .visualizer .bar {
+      width: 4px;
+      background: #6366f1;
+      border-radius: 2px;
+      transition: height 0.1s ease;
+      height: 4px;
+    }
+
+    .visualizer.active .bar {
+      animation: equalizer 0.5s ease-in-out infinite alternate;
+    }
+
+    .visualizer .bar:nth-child(1) { animation-delay: 0s; }
+    .visualizer .bar:nth-child(2) { animation-delay: 0.1s; }
+    .visualizer .bar:nth-child(3) { animation-delay: 0.2s; }
+    .visualizer .bar:nth-child(4) { animation-delay: 0.3s; }
+    .visualizer .bar:nth-child(5) { animation-delay: 0.15s; }
+    .visualizer .bar:nth-child(6) { animation-delay: 0.25s; }
+    .visualizer .bar:nth-child(7) { animation-delay: 0.05s; }
+    .visualizer .bar:nth-child(8) { animation-delay: 0.35s; }
+
+    @keyframes equalizer {
+      from { height: 4px; }
+      to { height: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">Voxly</div>
+    <div class="subtitle">AI Voice Calling Agent</div>
+
+    <div class="visualizer" id="visualizer">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+    </div>
+
+    <div class="call-area">
+      <div class="pulse-ring" id="ring1"></div>
+      <div class="pulse-ring" id="ring2"></div>
+      <div class="pulse-ring" id="ring3"></div>
+      <button class="call-btn idle" id="callBtn" onclick="toggleCall()">
+        📞
+      </button>
+    </div>
+
+    <div class="status" id="status">Ready to call</div>
+    <div class="timer" id="timer"></div>
+
+    <div class="transcript" id="transcript"></div>
+
+    <div class="cost-badge">~₹1.74/min &nbsp;·&nbsp; LiveKit + Gemini + Vobiz SIP</div>
+
+    <div class="config-status" id="configStatus">
+      <div style="color:#aaa;margin-bottom:0.5rem;font-weight:600;">Configuration</div>
+      <div class="config-row"><span class="config-label">LiveKit URL</span><span class="config-val" id="cfg-livekit_url">checking…</span></div>
+      <div class="config-row"><span class="config-label">LiveKit API Key</span><span class="config-val" id="cfg-livekit_api_key">checking…</span></div>
+      <div class="config-row"><span class="config-label">LiveKit API Secret</span><span class="config-val" id="cfg-livekit_api_secret">checking…</span></div>
+      <div class="config-row"><span class="config-label">Google Gemini</span><span class="config-val" id="cfg-google_api_key">checking…</span></div>
+      <div class="config-row"><span class="config-label">Vobiz SIP</span><span class="config-val" id="cfg-vobiz_sip_host">checking…</span></div>
+    </div>
+  </div>
+
+  <script>
+    let callActive = false;
+    let timerInterval = null;
+    let startTime = null;
+
+    async function checkConfig() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        for (const [key, val] of Object.entries(data)) {
+          const el = document.getElementById('cfg-' + key);
+          if (el) {
+            el.textContent = val ? 'Connected' : 'Not set';
+            el.className = 'config-val ' + (val ? 'ok' : 'missing');
+          }
+        }
+      } catch (e) {
+        console.error('Config check failed:', e);
+      }
+    }
+
+    function formatTime(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimer() {
+      if (startTime) {
+        document.getElementById('timer').textContent = formatTime(Date.now() - startTime);
+      }
+    }
+
+    async function toggleCall() {
+      const btn = document.getElementById('callBtn');
+      const status = document.getElementById('status');
+      const vis = document.getElementById('visualizer');
+      const rings = document.querySelectorAll('.pulse-ring');
+
+      if (!callActive) {
+        // Start call
+        btn.className = 'call-btn connecting';
+        btn.textContent = '⏳';
+        status.textContent = 'Connecting…';
+        status.className = 'status connecting';
+
+        try {
+          const res = await fetch('/api/token?identity=web-user-' + Date.now());
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Failed to get token');
+          }
+
+          const data = await res.json();
+
+          // Simulate connection (actual LiveKit client SDK would connect here)
+          callActive = true;
+          btn.className = 'call-btn active';
+          btn.textContent = '📵';
+          status.textContent = 'Connected — speak now';
+          status.className = 'status connected';
+          vis.classList.add('active');
+          rings.forEach(r => r.classList.add('active'));
+
+          startTime = Date.now();
+          timerInterval = setInterval(updateTimer, 1000);
+          updateTimer();
+
+          addTranscript('agent', 'Hi, this is Voxly, your AI assistant. How can I help you today?');
+
+        } catch (e) {
+          btn.className = 'call-btn idle';
+          btn.textContent = '📞';
+          status.textContent = e.message;
+          status.className = 'status error';
+        }
+
+      } else {
+        // End call
+        callActive = false;
+        btn.className = 'call-btn idle';
+        btn.textContent = '📞';
+        status.textContent = 'Call ended';
+        status.className = 'status';
+        vis.classList.remove('active');
+        rings.forEach(r => r.classList.remove('active'));
+
+        clearInterval(timerInterval);
+        timerInterval = null;
+
+        const duration = startTime ? formatTime(Date.now() - startTime) : '00:00';
+        const cost = startTime ? ((Date.now() - startTime) / 60000 * 1.74).toFixed(2) : '0.00';
+        document.getElementById('timer').textContent = `${duration} — ₹${cost}`;
+        startTime = null;
+
+        addTranscript('agent', 'Thanks for calling! Have a great day.');
+      }
+    }
+
+    function addTranscript(role, text) {
+      const el = document.getElementById('transcript');
+      const line = document.createElement('div');
+      line.className = role;
+      line.textContent = (role === 'agent' ? '🤖 Voxly: ' : '🗣️ You: ') + text;
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // Check config on load
+    checkConfig();
+  </script>
+</body>
+</html>
